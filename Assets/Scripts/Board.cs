@@ -21,6 +21,8 @@ public class Board : MonoBehaviour
     public TMP_InputField inputDestinationX;
     public TMP_InputField inputDestinationY;
 
+    public TextMeshProUGUI[] playersPointsText;
+
     private void Awake()
     {
         string sendIp = "127.0.0.1";
@@ -51,6 +53,18 @@ public class Board : MonoBehaviour
                 {
                     int[,] board = JsonConvert.DeserializeObject<int[,]>(trimmedMessage);
                     CreateBoard(board);
+                }
+                catch (JsonException ex)
+                {
+                    Debug.LogError("Fail to convert json: " + ex.Message);
+                }
+            }
+            else if (trimmedMessage.Contains($@"PlayerPoints"))
+            {
+                try
+                {
+                    PlayerPointsResponse response = JsonConvert.DeserializeObject<PlayerPointsResponse>(trimmedMessage);
+                    playersPointsText[response.playerPoints.index].text = "Player" + response.playerPoints.index + "points:" + response.playerPoints.points;
                 }
                 catch (JsonException ex)
                 {
@@ -119,5 +133,4 @@ public class Board : MonoBehaviour
     {
         connection.Stop();
     }
-
 }
