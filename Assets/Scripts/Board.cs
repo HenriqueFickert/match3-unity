@@ -2,8 +2,6 @@ using Newtonsoft.Json;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using UnityEngine.UIElements;
-
 
 public class Board : MonoBehaviour
 {
@@ -66,9 +64,8 @@ public class Board : MonoBehaviour
     {
         if (string.IsNullOrEmpty(inputLocalX.text) || string.IsNullOrEmpty(inputLocalY.text) || string.IsNullOrEmpty(inputDestinationX.text) || string.IsNullOrEmpty(inputDestinationY.text))
         {
-            CreateLog("Invalid inputs.");
+            CreateLog("Invalid coordinate.");
             return;
-            //loger.text += "\n Invalid inputs.";
         }
 
         // MOVE {"x":1,"y":0} {"x":0,"y":1}
@@ -102,11 +99,6 @@ public class Board : MonoBehaviour
         }
     }
 
-    void OnDestroy()
-    {
-        connection.Stop();
-    }
-
     public void CreateLog(string message)
     {
         GameObject obj = Instantiate(loggerPrefab, logContainer.transform.position, Quaternion.identity);
@@ -122,4 +114,10 @@ public class Board : MonoBehaviour
         scrollRect.content.GetComponent<ContentSizeFitter>().SetLayoutVertical();
         scrollRect.verticalNormalizedPosition = 0;
     }
+
+    void OnDestroy()
+    {
+        connection.Stop();
+    }
+
 }
