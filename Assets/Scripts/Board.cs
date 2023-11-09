@@ -43,6 +43,8 @@ public class Board : MonoBehaviour
         foreach (string message in connection.getMessages())
         {
             Debug.Log(message);
+            CreateLog(message);
+
             string trimmedMessage = message.Trim();
 
             if (trimmedMessage.StartsWith("[[") && trimmedMessage.EndsWith("]]"))
@@ -65,6 +67,7 @@ public class Board : MonoBehaviour
         if (string.IsNullOrEmpty(inputLocalX.text) || string.IsNullOrEmpty(inputLocalY.text) || string.IsNullOrEmpty(inputDestinationX.text) || string.IsNullOrEmpty(inputDestinationY.text))
         {
             CreateLog("Invalid inputs.");
+            return;
             //loger.text += "\n Invalid inputs.";
         }
 
@@ -107,7 +110,7 @@ public class Board : MonoBehaviour
     public void CreateLog(string message)
     {
         GameObject obj = Instantiate(loggerPrefab, logContainer.transform.position, Quaternion.identity);
-        obj.transform.SetParent(transform, false);
+        obj.transform.SetParent(logContainer.transform, false);
         obj.GetComponent<TextMeshProUGUI>().text = message;
         KeepMessageBottom();
     }
