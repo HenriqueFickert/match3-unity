@@ -35,7 +35,7 @@ public class UDPClient
             return;
         }
 
-        Debug.Log(String.Format("Created receiving client at ip {0} and port {1}", sendIp, receivePort));
+        Debug.Log(string.Format("Created receiving client at ip {0} and port {1}", sendIp, receivePort));
 
         senderIp = sendIp;
         senderPort = sendPort;
@@ -65,6 +65,7 @@ public class UDPClient
                 ResetTimeoutTimer();
                 byte[] receiveBytes = client.Receive(ref remoteIpEndPoint);
                 string returnData = Encoding.UTF8.GetString(receiveBytes);
+                Debug.Log(returnData);
                 BuffedMessage(returnData);
             }
 
@@ -201,7 +202,7 @@ public class UDPClient
         IPEndPoint serverEndpoint = new(IPAddress.Parse(senderIp), senderPort);
 
         string package = JsonConvert.SerializeObject(message);
-        byte[] sendBytes = Encoding.UTF8.GetBytes(package);
+        byte[] sendBytes = Encoding.UTF8.GetBytes(package + "|");
 
         udpClient.Send(sendBytes, sendBytes.Length, serverEndpoint);
 
@@ -211,6 +212,12 @@ public class UDPClient
         {
             packageSequence++;
         }
+    }
+
+    public void CreateAndSendMessage(GameCommand gameCommand, RequestType requestType)
+    {
+        Package package = new(packageSequence, latestAck, gameCommand, requestType);
+        SendMessage(package);
     }
 
     private bool AddPackageToSentList(Package packageObject)
