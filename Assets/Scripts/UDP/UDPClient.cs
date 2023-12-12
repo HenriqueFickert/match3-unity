@@ -22,7 +22,9 @@ public class UDPClient
 
     private int packageSequence = 1;
     private int latestAck = 0;
+
     private string messageBuffered = "";
+
     private Timer timeoutTimer;
     private int timeOutCounter = 0;
 
@@ -43,13 +45,17 @@ public class UDPClient
         Debug.Log("Set sendee at ip " + sendIp + " and port " + sendPort);
 
         StartReceiveThread();
+
         StartTimeoutTimer();
     }
 
     private void StartReceiveThread()
     {
-        receiveThread = new(() => ListenForMessages(udpClient));
-        receiveThread.IsBackground = true;
+        receiveThread = new(() => ListenForMessages(udpClient))
+        {
+            IsBackground = true
+        };
+
         threadRunning = true;
         receiveThread.Start();
     }
@@ -68,7 +74,6 @@ public class UDPClient
                 Debug.Log(returnData);
                 BuffedMessage(returnData);
             }
-
             catch (SocketException e)
             {
                 if (e.ErrorCode != 10004) Debug.Log("Socket exception while receiving data from udp client: " + e.Message);
@@ -156,29 +161,6 @@ public class UDPClient
         }
     }
 
-    private void CleanUpSendPackages(int ack)
-    {
-        packagesSent = packagesSent.Where(pkg => pkg.sequence > ack).ToList();
-    }
-
-    private void RequestMissingPackage()
-    {
-        Package requestResend = new (packageSequence, latestAck, null, RequestType.RESEND);
-        SendMessage(requestResend, false);
-    }
-
-    private void ResendPackages(int ack)
-    {
-        if (packagesSent.Any())
-        {
-            packagesSent.Where(x => x.sequence > ack)
-                .ToList()
-                .ForEach(y => {
-                 SendMessage(y, false);
-             });
-        }
-    }
-
     public Package[] GetMessages()
     {
         Package[] pendingMessages = new Package[0];
@@ -197,7 +179,50 @@ public class UDPClient
         return pendingMessages;
     }
 
-    public void SendMessage(Package message, bool addToPackagesList = true)
+    //public Package[] GetMessages()
+    //{
+    //    Package[] pendingMessages;
+
+    //    lock (packagesReceived)
+    //    {
+    //        pendingMessages = packagesReceived.ToArray();
+    //        packagesReceived.Clear();
+    //    }
+
+    //    return pendingMessages;
+    //}
+
+    private void CleanUpSendPackages(int ack)
+    {
+        lock (packagesSent)
+        {
+            packagesSent = packagesSent.Where(pkg => pkg.sequence > ack).ToList();
+        }
+    }
+
+    private void RequestMissingPackage()
+    {
+        Package requestResend = new(packageSequence, latestAck, null, RequestType.RESEND);
+        SendMessage(requestResend, false);
+    }
+
+    private void ResendPackages(int ack)
+    {
+        lock (packagesSent)
+        {
+            if (packagesSent.Any())
+            {
+                packagesSent.Where(x => x.sequence > ack)
+                    .ToList()
+                    .ForEach(y =>
+                    {
+                        SendMessage(y, false);
+                    });
+            }
+        }
+    }
+
+    private void SendMessage(Package message, bool addToPackagesList = true)
     {
         IPEndPoint serverEndpoint = new(IPAddress.Parse(senderIp), senderPort);
 
@@ -208,16 +233,13 @@ public class UDPClient
 
         if (!addToPackagesList) return;
 
-        if (AddPackageToSentList(message))
+        lock (packagesSent)
         {
-            packageSequence++;
+            if (AddPackageToSentList(message))
+            {
+                packageSequence++;
+            }
         }
-    }
-
-    public void CreateAndSendMessage(GameCommand gameCommand, RequestType requestType)
-    {
-        Package package = new(packageSequence, latestAck, gameCommand, requestType);
-        SendMessage(package);
     }
 
     private bool AddPackageToSentList(Package packageObject)
@@ -232,16 +254,27 @@ public class UDPClient
         return false;
     }
 
+    public void CreateAndSendMessage(GameCommand gameCommand, RequestType requestType)
+    {
+        Package package = new(packageSequence, latestAck, gameCommand, requestType);
+        SendMessage(package);
+    }
+
     private void StartTimeoutTimer()
     {
-        timeoutTimer?.Dispose();
-        timeoutTimer = new Timer(HandleTimeout, null, 3000, Timeout.Infinite);
+        if (timeoutTimer == null)
+            timeoutTimer = new Timer(HandleTimeout, null, 3000, Timeout.Infinite);
+        else
+            ResetTimeoutTimer();
     }
 
     private void ResetTimeoutTimer()
     {
-        StartTimeoutTimer();
-        timeOutCounter = 0;
+        if (timeoutTimer != null)
+        {
+            timeoutTimer.Change(3000, Timeout.Infinite);
+            timeOutCounter = 0;
+        }
     }
 
     private void HandleTimeout(System.Object state)
@@ -254,13 +287,13 @@ public class UDPClient
             return;
         }
 
-        Package timeoutMessage = new (packageSequence, latestAck, null, RequestType.TIMEOUT);
+        Package timeoutMessage = new(packageSequence, latestAck, null, RequestType.TIMEOUT);
         SendMessage(timeoutMessage, false);
         timeOutCounter++;
         StartTimeoutTimer();
     }
 
-    void HandleDisconnect()
+    private void HandleDisconnect()
     {
         //Package timeoutMessage = new (packageSequence, latestAck, null, RequestType.DISCONNECTED);
         //SendMessage(timeoutMessage, false);
