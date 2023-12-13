@@ -163,63 +163,15 @@ public class UDPClient
 
     public Package[] GetMessages()
     {
-        Package[] pendingMessages = new Package[0];
+        Package[] pendingMessages;
 
         lock (packagesReceived)
         {
-            pendingMessages = new Package[packagesReceived.Count];
-            int i = 0;
-            while (packagesReceived.Count != 0)
-            {
-                pendingMessages[i] = packagesReceived.Dequeue();
-                i++;
-            }
+            pendingMessages = packagesReceived.ToArray();
+            packagesReceived.Clear();
         }
 
         return pendingMessages;
-    }
-
-    //public Package[] GetMessages()
-    //{
-    //    Package[] pendingMessages;
-
-    //    lock (packagesReceived)
-    //    {
-    //        pendingMessages = packagesReceived.ToArray();
-    //        packagesReceived.Clear();
-    //    }
-
-    //    return pendingMessages;
-    //}
-
-    private void CleanUpSendPackages(int ack)
-    {
-        lock (packagesSent)
-        {
-            packagesSent = packagesSent.Where(pkg => pkg.sequence > ack).ToList();
-        }
-    }
-
-    private void RequestMissingPackage()
-    {
-        Package requestResend = new(packageSequence, latestAck, null, RequestType.RESEND);
-        SendMessage(requestResend, false);
-    }
-
-    private void ResendPackages(int ack)
-    {
-        lock (packagesSent)
-        {
-            if (packagesSent.Any())
-            {
-                packagesSent.Where(x => x.sequence > ack)
-                    .ToList()
-                    .ForEach(y =>
-                    {
-                        SendMessage(y, false);
-                    });
-            }
-        }
     }
 
     private void SendMessage(Package message, bool addToPackagesList = true)
@@ -242,6 +194,14 @@ public class UDPClient
         }
     }
 
+    private void CleanUpSendPackages(int ack)
+    {
+        lock (packagesSent)
+        {
+            packagesSent = packagesSent.Where(pkg => pkg.sequence > ack).ToList();
+        }
+    }
+
     private bool AddPackageToSentList(Package packageObject)
     {
         if (!packagesSent.Any(p => p.sequence == packageObject.sequence))
@@ -252,6 +212,28 @@ public class UDPClient
         }
 
         return false;
+    }
+
+    private void RequestMissingPackage()
+    {
+        Package requestResend = new(packageSequence, latestAck, null, RequestType.RESEND);
+        SendMessage(requestResend, false);
+    }
+
+    private void ResendPackages(int ack)
+    {
+        lock (packagesSent)
+        {
+            if (packagesSent.Any())
+            {
+                packagesSent.Where(x => x.sequence > ack)
+                    .ToList()
+                    .ForEach(y =>
+                    {
+                        SendMessage(y, false);
+                    });
+            }
+        }
     }
 
     public void CreateAndSendMessage(GameCommand gameCommand, RequestType requestType)
