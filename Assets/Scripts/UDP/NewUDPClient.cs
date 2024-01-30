@@ -1,15 +1,15 @@
-using System;
-using System.Threading;
-using System.Collections.Generic;
-using System.Net.Sockets;
-using System.Net;
-using System.Text;
-using UnityEngine;
 using Newtonsoft.Json;
+using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
-using UnityEditor.VersionControl;
+using System.Net;
+using System.Net.Sockets;
+using System.Text;
+using System.Threading;
+using UnityEngine;
 
-public class UDPClient
+public class NewUDPClient
 {
     private string senderIp;
     private int senderPort;
@@ -26,10 +26,7 @@ public class UDPClient
 
     private string messageBuffered = "";
 
-    private Timer timeoutTimer;
-    private int timeOutCounter = 0;
-
-    private readonly object packageSequenceLock = new object();
+    private readonly object packageSequenceLock = new();
 
     public void StartConnection(string sendIp, int sendPort, int receivePort)
     {
@@ -48,7 +45,6 @@ public class UDPClient
         Debug.Log("Set sendee at ip " + sendIp + " and port " + sendPort);
 
         StartReceiveThread();
-        StartTimeoutTimer();
     }
 
     private void StartReceiveThread()
@@ -70,7 +66,6 @@ public class UDPClient
         {
             try
             {
-                ResetTimeoutTimer();
                 byte[] receiveBytes = client.Receive(ref remoteIpEndPoint);
                 string returnData = Encoding.UTF8.GetString(receiveBytes);
                 Debug.Log(returnData);
@@ -113,19 +108,19 @@ public class UDPClient
             if (packageObject.protocolId != "MRQST")
                 return;
 
-            CleanUpSendPackages(packageObject.ack);
+            //CleanUpSendPackages(packageObject.ack);
 
-            if (packageObject.type == RequestType.RESEND)
-            {
-                ResendPackages(packageObject.ack);
-                return;
-            }
+            //if (packageObject.type == RequestType.RESEND)
+            //{
+            //    ResendPackages(packageObject.ack);
+            //    return;
+            //}
 
-            if (packageObject.type == RequestType.TIMEOUT)
-            {
-                SendLastMessageAgain();
-                return;
-            }
+            //if (packageObject.type == RequestType.TIMEOUT)
+            //{
+            //    SendLastMessageAgain();
+            //    return;
+            //}
 
             HandlePackage(packageObject);
         }
@@ -147,7 +142,7 @@ public class UDPClient
         }
         else
         {
-            RequestMissingPackage();
+            //RequestMissingPackage();
         }
     }
 
@@ -176,130 +171,28 @@ public class UDPClient
         return pendingMessages;
     }
 
-    private void SendMessage(Package message, bool addToPackagesList = true)
-    {
-        IPEndPoint serverEndpoint = new(IPAddress.Parse(senderIp), senderPort);
-
-        string package = JsonConvert.SerializeObject(message);
-        byte[] sendBytes = Encoding.UTF8.GetBytes(package + "|");
-
-        udpClient.Send(sendBytes, sendBytes.Length, serverEndpoint);
-
-        if (!addToPackagesList) return;
-
-        lock (packagesSent)
-        {
-            if (AddPackageToSentList(message))
-            {
-                packageSequence++;
-            }
-        }
-    }
-
-    private void CleanUpSendPackages(int ack)
-    {
-        lock (packagesSent)
-        {
-            packagesSent = packagesSent.Where(pkg => pkg.sequence > ack).ToList();
-        }
-    }
-
-    private bool AddPackageToSentList(Package packageObject)
+    private void AddPackageToSentList(Package packageObject)
     {
         if (!packagesSent.Any(p => p.sequence == packageObject.sequence))
         {
             packagesSent.Add(packageObject);
             packagesSent.OrderBy(x => x.sequence);
-
-            lock (packageSequenceLock)
-            {
-                packageSequence++;
-            }
-
-            return true;
-        }
-
-        return false;
-    }
-
-    private void RequestMissingPackage()
-    {
-        Package requestResend = new(packageSequence, latestAck, null, RequestType.RESEND);
-        SendMessage(requestResend, false);
-    }
-
-    private void ResendPackages(int ack)
-    {
-        lock (packagesSent)
-        {
-            if (packagesSent.Any())
-            {
-                packagesSent.Where(x => x.sequence > ack)
-                    .ToList()
-                    .ForEach(y =>
-                    {
-                        SendMessage(y, false);
-                    });
-            }
         }
     }
 
-    public void CreateAndSendMessage(GameCommand gameCommand, RequestType requestType)
+    private void AddPackageSequence()
     {
-        Package package;
-
         lock (packageSequenceLock)
         {
-            package = new Package(packageSequence, latestAck, gameCommand, requestType);
-        }
-
-        SendMessage(package);
-    }
-
-    private void StartTimeoutTimer()
-    {
-        if (timeoutTimer == null)
-            timeoutTimer = new Timer(HandleTimeout, null, 3000, Timeout.Infinite);
-        else
-            ResetTimeoutTimer();
-    }
-
-    private void ResetTimeoutTimer()
-    {
-        if (timeoutTimer != null)
-        {
-            timeoutTimer.Change(3000, Timeout.Infinite);
-            timeOutCounter = 0;
+            packageSequence++;
         }
     }
 
-    private void HandleTimeout(System.Object state)
+    private int GetPackageSequence()
     {
-        Console.WriteLine("Send a timeout request.");
-
-        if (timeOutCounter >= 5)
+        lock (packageSequenceLock)
         {
-            HandleDisconnect();
-            return;
-        }
-
-        Package timeoutMessage = new(packageSequence, latestAck, null, RequestType.TIMEOUT);
-        SendMessage(timeoutMessage, false);
-        timeOutCounter++;
-        StartTimeoutTimer();
-    }
-
-    private void HandleDisconnect()
-    {
-        //Package timeoutMessage = new (packageSequence, latestAck, null, RequestType.DISCONNECTED);
-        //SendMessage(timeoutMessage, false);
-    }
-
-    private void SendLastMessageAgain()
-    {
-        if (packagesSent.Any())
-        {
-            SendMessage(packagesSent[^1], false);
+            return packageSequence;
         }
     }
 
