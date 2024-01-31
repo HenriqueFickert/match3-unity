@@ -1,10 +1,13 @@
 public class Package
 {
     public string protocolId;
-        public int sequence;
-        public int ack;
-        public RequestType type;
-        public GameCommand packageData;
+    public int sequence;
+    public int ack;
+    public RequestType type;
+    public GameCommand packageData;
+
+    public Package()
+    { }
 
     public Package(int sequence, int ack, GameCommand data, RequestType type)
     {
