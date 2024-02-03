@@ -70,10 +70,10 @@ public class NewUDPClient
         {
             try
             {
-                ResetTimeoutTimer();
+                ResetTimeout();
                 byte[] receiveBytes = client.Receive(ref remoteIpEndPoint);
                 string returnData = Encoding.UTF8.GetString(receiveBytes);
-                Debug.Log(returnData);
+                Debug.Log("Mensagem Recebida: " + returnData);
                 BuffedMessage(returnData);
             }
             catch (SocketException e)
@@ -124,13 +124,13 @@ public class NewUDPClient
 
             CleanUpSendPackages(packageObject.ack);
 
-            if (packageObject.type == RequestType.RESEND)
+            if (packageObject.type == RequestType.RESEND.ToString())
             {
                 ResendMissingPackages(packageObject.ack);
                 return;
             }
 
-            if (packageObject.type == RequestType.TIMEOUT)
+            if (packageObject.type == RequestType.TIMEOUT.ToString())
             {
                 ResendLastPackage();
                 return;
@@ -185,7 +185,7 @@ public class NewUDPClient
         return pendingMessages;
     }
 
-    private void CreateAndSendNewPackage(GameCommand gameCommand)
+    public void CreateAndSendNewPackage(GameCommand gameCommand)
     {
         lock (packagesSent)
         {
@@ -240,6 +240,7 @@ public class NewUDPClient
     {
         lock (packagesSent)
         {
+            //TODO Criar para quando não tiver nenhum pacote para enviar mesmo assim enviar uma mensagem de timeout
             if (packagesSent.Any())
             {
                 SendMessage(packagesSent[^1]);
@@ -260,6 +261,7 @@ public class NewUDPClient
         IPEndPoint serverEndpoint = new(IPAddress.Parse(senderIp), senderPort);
 
         string message = JsonConvert.SerializeObject(package);
+        Debug.Log("Mensagem enviada: " + message);
         byte[] sendBytes = Encoding.UTF8.GetBytes(message + "|");
 
         udpClient.Send(sendBytes, sendBytes.Length, serverEndpoint);
@@ -269,8 +271,13 @@ public class NewUDPClient
     {
         if (timeoutTimer == null)
             timeoutTimer = new Timer(HandleTimeout, null, 3000, Timeout.Infinite);
-        else
-            ResetTimeoutTimer();
+    }
+
+    private void ResetTimeout()
+    {
+        timeOutCounter = 0;
+        Debug.Log("TimeOut Counter Resetado");
+        ResetTimeoutTimer();
     }
 
     private void ResetTimeoutTimer()
@@ -278,13 +285,14 @@ public class NewUDPClient
         if (timeoutTimer != null)
         {
             timeoutTimer.Change(3000, Timeout.Infinite);
-            timeOutCounter = 0;
         }
     }
 
     private void HandleTimeout(System.Object state)
     {
         Console.WriteLine("Send a timeout request.");
+
+        Debug.Log("Timeout Counter: " + timeOutCounter);
 
         if (timeOutCounter >= 5)
         {
@@ -298,6 +306,7 @@ public class NewUDPClient
 
     private void HandleDisconnect()
     {
+        Debug.Log("DISCONNECTED.");
     }
 
     private void AddPackageSequence()

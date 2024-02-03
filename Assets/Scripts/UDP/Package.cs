@@ -3,7 +3,7 @@ public class Package
     public string protocolId;
     public int sequence;
     public int ack;
-    public RequestType type;
+    public string type;
     public GameCommand packageData;
 
     public Package()
@@ -14,7 +14,7 @@ public class Package
         protocolId = "MRQST";
         this.sequence = sequence;
         this.ack = ack;
-        this.type = type;
+        this.type = type.ToString();
         packageData = data;
     }
 }

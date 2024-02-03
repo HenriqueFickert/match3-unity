@@ -8,6 +8,7 @@ using UnityEngine;
 using Newtonsoft.Json;
 using System.Linq;
 using UnityEditor.VersionControl;
+using UnityEditor.Experimental.GraphView;
 
 public class UDPClient
 {
@@ -70,6 +71,15 @@ public class UDPClient
         {
             try
             {
+                System.Random lossRandom = new();
+                int lossChance = lossRandom.Next(0, 100);
+                bool haveLoss = lossChance < 90;
+
+                if (haveLoss)
+                {
+                    return;
+                }
+
                 ResetTimeoutTimer();
                 byte[] receiveBytes = client.Receive(ref remoteIpEndPoint);
                 string returnData = Encoding.UTF8.GetString(receiveBytes);
@@ -115,13 +125,13 @@ public class UDPClient
 
             CleanUpSendPackages(packageObject.ack);
 
-            if (packageObject.type == RequestType.RESEND)
+            if (packageObject.type == RequestType.RESEND.ToString())
             {
                 ResendPackages(packageObject.ack);
                 return;
             }
 
-            if (packageObject.type == RequestType.TIMEOUT)
+            if (packageObject.type == RequestType.TIMEOUT.ToString())
             {
                 SendLastMessageAgain();
                 return;

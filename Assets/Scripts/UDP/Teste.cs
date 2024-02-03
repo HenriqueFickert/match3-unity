@@ -7,7 +7,7 @@ using UnityEngine;
 
 public class Teste : MonoBehaviour
 {
-    private UDPClient connection;
+    private NewUDPClient connection;
 
     private void Awake()
     {
@@ -15,25 +15,25 @@ public class Teste : MonoBehaviour
         int sendPort = 3000;
         int receivePort = Random.Range(11000, 11500);
 
-        connection = new UDPClient();
+        connection = new NewUDPClient();
         connection.StartConnection(sendIp, sendPort, receivePort);
     }
 
-    void Start()
+    private void Start()
     {
-        connection.CreateAndSendMessage(null, RequestType.RES);
+        connection.CreateAndSendNewPackage(null);
     }
 
-    void Update()
+    private void Update()
     {
         foreach (Package message in connection.GetMessages())
         {
-            Debug.Log(JsonConvert.SerializeObject(message));
+            //Debug.Log(JsonConvert.SerializeObject(message));
         }
 
         if (Input.GetKey(KeyCode.Z))
         {
-            connection.CreateAndSendMessage(null, RequestType.RES);
+            connection.CreateAndSendNewPackage(null);
         }
     }
 
